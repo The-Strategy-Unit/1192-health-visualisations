@@ -1,0 +1,122 @@
+---
+title: "Visualisations"
+author: "Zoë Turner"
+format: html
+embed-resources: true
+execute: 
+  messsage: false
+  warning: false
+  echo: false
+---
+
+Based on the visualisations from an interactive Shiny app by [Trafford Data Lab](https://trafforddatalab.shinyapps.io/population_picker/) whose code is available for [reuse](https://github.com/traffordDataLab/population_picker). 
+
+
+```{r}
+#| label: data-processing
+
+source("pre-processing.R")
+
+pyramid_data <- all_geographies |>
+  filter(gender != "Persons") |>
+  mutate(
+    age = as.integer(age),
+    ageband = cut(
+      age,
+      breaks = c(
+        0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 120
+      ),
+      labels = c(
+        "0-4", "5-9", "10-14", "15-19", "20-24", "25-29", "30-34",
+        "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-69",
+        "70-74", "75-79", "80-84", "85-89", "90+"
+      ),
+      right = FALSE
+    )
+  )
+```
+
+```{r}
+#| label: pyramid-chart-processing
+
+df <- pyramid_data |>
+  summarise(n = sum(n), .by = c("gender", "ageband", "area_name")) |>
+  mutate(total = sum(n), .by = "area_name") |> 
+  mutate(
+    gender = factor(gender, levels = c("Males", "Females")),
+    age = as.integer(ageband),
+    percent = round(n / total * 100, 1),
+    tooltip = paste0(
+      "<strong>",
+      percent, "% (", scales::comma(n, accuracy = 1), ")",
+      "</strong><br/>",
+      "<em>",
+      gender,
+      "</em><br/>",
+      ageband,
+      " years"
+    )
+  )
+```
+
+```{r}
+#| label: pyramid-function
+
+pyramid_chart <- function(name) {
+  
+  gg <- df |> 
+    filter(area_name == name) |> 
+    ggplot(aes(x = ageband, y = ifelse(gender == "Males", -percent, percent), fill = gender)) +
+    ggiraph::geom_bar_interactive(aes(tooltip = tooltip), stat = "identity", alpha = 0.6) +
+    scale_y_continuous(labels = abs) +
+    scale_fill_manual(values = c("Males" = "#44B7C2", "Females" = "#024B7A")) +
+    labs(
+      x = NULL,
+      y = "% of total population",
+      title = name,
+      subtitle = NULL,
+      caption = "Source: Office for National Statistics"
+    ) +
+    coord_flip() +
+    theme_minimal(base_size = 14, base_family = "Arial") +
+    theme(
+      plot.margin = unit(rep(0.5, 4), "cm"),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.caption = element_text(colour = "grey60", margin = margin(t = 20, b = -10)),
+      axis.title.x = element_text(),
+      legend.position = "none"
+    )
+}
+```
+
+
+```{r}
+#| label: produce-charts
+#| results: asis
+#| include: false
+
+gg_list <- list()
+
+for(i in la_names){
+
+  tmp_plot <- pyramid_chart(name = i)
+  gg_list[[i]] <- girafe(ggobj = tmp_plot)
+  
+  girafe_options(
+    gg_list[[i]],
+    opts_tooltip(use_fill = TRUE),
+    opts_toolbar(saveaspng = FALSE)
+  )
+  
+}
+
+```
+
+
+```{r}
+#| label: html-charts
+
+htmltools::tagList(gg_list)
+
+```
