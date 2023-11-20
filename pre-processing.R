@@ -4,16 +4,6 @@
 
 library(tidyverse) ; library(nomisr) ; library(ggiraph)
 
-la_names <- c(
-  "Birmingham",
-  "Coventry",
-  "Dudley",
-  "Sandwell",
-  "Solihull",
-  "Walsall",
-  "Wolverhampton"
-)
-
 # specific format for Nomis
 la_names_nomis <- paste(la_names, collapse = ",")
 
