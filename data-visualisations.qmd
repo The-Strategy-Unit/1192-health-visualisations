@@ -13,6 +13,23 @@ Based on the visualisations from an interactive Shiny app by [Trafford Data Lab]
 
 
 ```{r}
+#| label: setup
+
+library(tidyverse) ; library(nomisr) ; library(ggiraph)
+
+la_names <- c(
+  "Birmingham",
+  "Coventry",
+  "Dudley",
+  "Sandwell",
+  "Solihull",
+  "Walsall",
+  "Wolverhampton"
+)
+```
+
+
+```{r}
 #| label: data-processing
 
 source("pre-processing.R")
@@ -62,37 +79,93 @@ df <- pyramid_data |>
 ```{r}
 #| label: pyramid-function
 
-pyramid_chart <- function(name) {
+#' Pyramid charts
+#'
+#' @param name String Using Local Authority names individually like `"Birmingham"` or as a vector `c("Birmingham", "Coventry")`. Also possible to use pre determined vectors in a script so `lookup <- c("Birmingham", "Coventry")` with the code then reading: `pyramid_chart(lookup)`
+#' @param all_or_subset String Default is "subset" where data is filtered to the Local Authority/ies in the data set. All returns all data with no subsetting. Note that only the first category will be produced by this function unless used in conjunction with a `loop` or `purrr:map` code
+#'
+#' @return ggplot charts
+#' @export
+
+pyramid_chart <- function(name, 
+                          all_or_subset = c("subset", "all")) {
   
-  gg <- df |> 
-    filter(area_name == name) |> 
-    ggplot(aes(x = ageband, y = ifelse(gender == "Males", -percent, percent), fill = gender)) +
-    ggiraph::geom_bar_interactive(aes(tooltip = tooltip), stat = "identity", alpha = 0.6) +
-    scale_y_continuous(labels = abs) +
-    scale_fill_manual(values = c("Males" = "#44B7C2", "Females" = "#024B7A")) +
-    labs(
-      x = NULL,
-      y = "% of total population",
-      title = name,
-      subtitle = NULL,
-      caption = "Source: Office for National Statistics"
-    ) +
-    coord_flip() +
-    theme_minimal(base_size = 14, base_family = "Arial") +
-    theme(
-      plot.margin = unit(rep(0.5, 4), "cm"),
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor = element_blank(),
-      plot.caption = element_text(colour = "grey60", margin = margin(t = 20, b = -10)),
-      axis.title.x = element_text(),
-      legend.position = "none"
-    )
-}
+  all_or_subset <- match.arg(all_or_subset)
+  
+  
+  if (all_or_subset == "subset") {
+    
+    gg <- df |> 
+      filter(area_name == name) 
+  }
+  
+  if (all_or_subset == "all") {
+    
+    gg <- df
+    
+  }  
+
+  gg |> 
+      ggplot(aes(x = ageband, y = ifelse(gender == "Males", -percent, percent), fill = gender)) +
+      ggiraph::geom_bar_interactive(aes(tooltip = tooltip), stat = "identity", alpha = 0.6) +
+      scale_y_continuous(labels = abs) +
+      scale_fill_manual(values = c("Males" = "#44B7C2", "Females" = "#024B7A")) +
+      labs(
+        x = NULL,
+        y = "% of total population",
+        title = name,
+        subtitle = NULL,
+        caption = "Source: Office for National Statistics"
+      ) +
+      coord_flip() +
+      theme_minimal(base_size = 14, base_family = "Arial") +
+      theme(
+        plot.margin = unit(rep(0.5, 4), "cm"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.caption = element_text(colour = "grey60", margin = margin(t = 20, b = -10)),
+        axis.title.x = element_text(),
+        legend.position = "none"
+      )
+  }
+
+```
+
+# Static charts
+
+```{r}
+#| label: static-chart
+#| output: asis
+#| panel: tabset
+
+# Based on GitHub issue code https://github.com/quarto-dev/quarto-cli/issues/5667
+
+la_names %>% 
+  walk(
+    function(x){
+      cat(paste("\n\n##", x, "\n"))
+      pyramid_chart(x) %>% print()
+    }
+  )
+
+```
+
+# Facetted Pyramid charts
+
+```{r}
+pyramid_chart(name = la_names,
+              all_or_subset = "all") +
+  facet_wrap(~area_name) +
+  ggtitle(label = NULL)
+
 ```
 
 
+
+# Interactive Pyramid charts (subset of Region)
+
 ```{r}
-#| label: produce-charts
+#| label: interactive-charts
 #| results: asis
 #| include: false
 
