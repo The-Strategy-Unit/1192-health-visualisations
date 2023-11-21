@@ -7,6 +7,7 @@ execute:
   messsage: false
   warning: false
   echo: false
+toc: true
 ---
 
 Based on the visualisations from an interactive Shiny app by [Trafford Data Lab](https://trafforddatalab.shinyapps.io/population_picker/) whose code is available for [reuse](https://github.com/traffordDataLab/population_picker). 
@@ -15,7 +16,7 @@ Based on the visualisations from an interactive Shiny app by [Trafford Data Lab]
 ```{r}
 #| label: setup
 
-library(tidyverse) ; library(nomisr) ; library(ggiraph)
+library(tidyverse) ; library(nomisr) ; library(ggiraph) ; library(scales)
 
 la_names <- c(
   "Birmingham",
@@ -26,13 +27,13 @@ la_names <- c(
   "Walsall",
   "Wolverhampton"
 )
+
+source("pre-processing.R")
 ```
 
 
 ```{r}
 #| label: data-processing
-
-source("pre-processing.R")
 
 pyramid_data <- all_geographies |>
   filter(gender != "Persons") |>
@@ -114,7 +115,7 @@ pyramid_chart <- function(name,
         x = NULL,
         y = "% of total population",
         title = name,
-        subtitle = NULL,
+        subtitle = paste(scales::comma(unique(gg$total)), "residents"),
         caption = "Source: Office for National Statistics"
       ) +
       coord_flip() +
@@ -156,7 +157,8 @@ la_names %>%
 pyramid_chart(name = la_names,
               all_or_subset = "all") +
   facet_wrap(~area_name) +
-  ggtitle(label = NULL)
+  labs(subtitle = NULL, 
+       title = NULL)
 
 ```
 
@@ -192,4 +194,46 @@ for(i in la_names){
 
 htmltools::tagList(gg_list)
 
+```
+
+# Ethnicity
+
+```{r}
+#| label: ethnicity-chart-processing
+
+results <- la_r_eth %>%
+  select(area_code = geography_code, 
+         area_name = geography_name, 
+         group = cell_name, 
+         n = obs_value) |> 
+  pivot_wider(names_from = group,
+              values_from = n) %>% 
+  rename(Asian = `Asian/Asian British`,
+         Black = `Black/African/Caribbean/Black British`, 
+         Mixed = `Mixed/multiple ethnic groups`, 
+         Other = `Other ethnic group`) %>% 
+  gather(ethnic_group, n, -area_code, -area_name) %>% 
+  group_by(area_code, area_name) %>% 
+  mutate(percent = (n/sum(n)))
+```
+
+```{r}
+#| label: ethnicity-plot
+pal <- c("Asian" = "#FF0000", "Black" = "#55FF00", "Mixed" = "#FFAA01", "Other" = "#8A5B47", "White" = "#82B3FF")
+
+ggplot(results, aes(x = fct_rev(area_name), y = percent, fill = ethnic_group)) + 
+  geom_col(position = "stack", width = 0.3, alpha = 0.8) +
+  scale_y_continuous(expand = c(0, 0), labels = scales::percent) +
+  scale_fill_manual(values = pal,
+                    guide = guide_legend(keyheight = unit(2, units = "mm"), 
+                                         keywidth = unit(12, units = "mm"), 
+                                         label.position = "top", 
+                                         label.vjust = 10,
+                                         nrow = 1)) +
+  coord_flip() +
+  labs(x = NULL, y = NULL, fill = NULL, title = NULL,
+       caption = "Source: 2011 Census  |  @traffordDataLab") +
+  theme(panel.grid.major.y = element_blank(),
+        plot.margin = unit(c(1,1,2,1), "cm"),
+        legend.position = "bottom")
 ```
