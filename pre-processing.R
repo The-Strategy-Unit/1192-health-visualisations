@@ -2,7 +2,7 @@
 # URL: https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/bulletins/annualmidyearpopulationestimates/mid2020
 # Licence: Open Government Licence v3.0
 
-library(tidyverse) ; library(nomisr) ; library(ggiraph)
+library(tidyverse) ; library(nomisr)
 
 # specific format for Nomis
 la_names_nomis <- paste(la_names, collapse = ",")
@@ -55,3 +55,38 @@ all_geographies <- la_r %>%
   gather(age, n, -period, -area_code, -area_name, -geography, -gender) %>%
   mutate(age = as.integer(age))
 
+
+# Ethnicity data ----------------------------------------------------------
+
+
+dat_la_eth <- nomisr::nomis_codelist(
+  id = "NM_608_1",
+  concept = "geography",
+  search = la_names_nomis
+) |>
+  dplyr::arrange(label.en) |> 
+  dplyr::slice_head(
+    n = 1,
+    by = label.en
+  )
+
+la_r_eth <- nomisr::nomis_get_data(
+  id = "NM_608_1",
+  geography = dat_la_eth$id,
+  time = "latest",
+  tidy = TRUE
+) |> 
+  filter(
+    measures_name == "Value",
+    rural_urban_name == "Total",
+    cell %in% c(100, 200, 300, 400, 500),
+    measures == 20100
+  ) |> 
+  select(date_name,
+         geography_name,
+         geography_code,
+         rural_urban_name,
+         cell_name,
+         measures_name,
+         obs_value,
+         obs_status_name)
