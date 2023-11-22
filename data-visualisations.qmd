@@ -151,7 +151,7 @@ la_names %>%
 
 ```
 
-# Facetted Pyramid charts
+# Faceted Pyramid charts
 
 ```{r}
 pyramid_chart(name = la_names,
