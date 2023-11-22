@@ -1,0 +1,47 @@
+---
+title: "Map of LSOAs in West Midlands (leaflet)"
+author: "Ozayr Mohammed"
+date: "2023-11-21"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(sf)
+library(leaflet)
+library(readr)
+library(dplyr)
+library(viridis)
+
+wmca <- c("E08000025","E08000026","E08000027","E08000028","E08000029","E08000030","E08000031")
+
+lookup <- read_csv("map_data/LSOA_(2011)_to_LSOA_(2021)_to_Local_Authority_District_(2022)_Lookup_for_England_and_Wales_(Version_2).csv") |> 
+  filter(LAD22CD %in% wmca)
+
+lsoas <- read_sf("map_data/Lower_layer_Super_Output_Areas_2021_EW_BSC_v2_4230104012005843742.geojson") |> 
+  sf::st_transform('+proj=longlat +datum=WGS84') |> 
+  inner_join(lookup)
+
+wmca_names <- unique(lsoas$LAD22NM)
+
+la_palette <- colorFactor(viridis(length(wmca_names), end = 1), domain = wmca_names)
+
+```
+
+```{r, echo = F}
+
+leaflet(lsoas) |> 
+  addProviderTiles("CartoDB.Positron") |> 
+  addPolygons(
+    fillColor = ~la_palette(LAD22NM),
+    fillOpacity = 0.2, opacity = 0.1,
+    color = "black",
+    weight = 1) |> 
+  addLegend(title = 'Local Authority',
+            pal = la_palette,
+            values = wmca_names)
+
+
+  
+```
+
